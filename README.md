@@ -5,6 +5,21 @@ overlay 中被定义为 `led0` devicetree 别名，输出为高电平有效。
 
 源代码目录通过 Samba 挂载，请勿直接在 macOS 上编译。
 
+## 复位后的启动日志
+
+日志经 ESP32-C3 内置 USB Serial/JTAG 输出到主机侧 `/dev/ttyACM0`。按下 `RST` 后，
+USB 设备会断开并重新枚举约 1 秒；固件的应用主线程会先等待 2 秒，之后才开始 GPIO8
+初始化并输出首条日志，因此监听程序重连后仍可获得全部应用启动日志。
+
+可使用自动重连命令监听：
+
+```bash
+while true; do
+    picocom --noreset --noinit --nolock -b 115200 /dev/ttyACM0
+    sleep 1
+done
+```
+
 ## 验证状态
 
 已于 2026-07-15 验证：

@@ -1,3 +1,5 @@
 build/
 ._*
 .DS_Store
+*.txt
+

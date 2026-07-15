@@ -1,5 +1,10 @@
 /* GPIO8 连接外部 LED，使用高电平点亮。 */
 / {
+	chosen {
+		/* ESP32-C3 USB Serial/JTAG：用于烧录后的启动日志输出。 */
+		zephyr,console = &usb_serial;
+	};
+
 	aliases {
 		led0 = &gpio8_led;
 	};
