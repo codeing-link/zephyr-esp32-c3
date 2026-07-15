@@ -17,6 +17,8 @@ struct ttm_config {
 	uint16_t adv_interval_ms;
 	uint16_t product_id;
 	char name[TTM_NAME_MAX_LEN + 1];
+	uint8_t mac[6];
+	bool custom_mac;
 	uint8_t add_data[TTM_ADD_MAX_LEN];
 	uint8_t add_len;
 };
@@ -30,6 +32,8 @@ struct ttm_port {
 	int (*set_tx_power)(int8_t dbm);
 	int (*restart_advertising)(const struct ttm_config *config);
 	int (*set_connection_interval)(uint16_t interval_ms);
+	int (*set_mac)(const uint8_t mac[6]);
+	void (*disconnect_ble)(void);
 	void (*save_config)(const struct ttm_config *config);
 	void (*reset_system)(void);
 };

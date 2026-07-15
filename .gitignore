@@ -2,4 +2,4 @@ build/
 ._*
 .DS_Store
 *.txt
-
+*/__pycache__
