@@ -32,6 +32,7 @@ LOG_MODULE_REGISTER(gpio8_blinky, LOG_LEVEL_INF);
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static const struct device *const data_uart = DEVICE_DT_GET(UART_NODE);
 static struct ttm_config ttm_config;
+static struct ttm_protocol ttm_protocol;
 static bool ttm_config_loaded;
 static bool ttm_config_invalid;
 static struct bt_conn *ble_connection;
@@ -43,7 +44,7 @@ static size_t uart_line_len;
 static uint8_t uart_packet[UART_PACKET_MAX_LEN];
 static size_t uart_packet_len;
 extern const struct bt_gatt_service_static ttm_service;
-static int restart_advertising(const struct ttm_config *config);
+static int restart_advertising(void *context, const struct ttm_config *config);
 
 static struct bt_uuid_16 ttm_service_uuid = BT_UUID_INIT_16(0xFFF0);
 static struct bt_uuid_16 ble_data_uuid = BT_UUID_INIT_16(0xFFF3);
@@ -70,16 +71,19 @@ static int load_ttm_config(const char *name, size_t len, settings_read_cb read_c
 
 SETTINGS_STATIC_HANDLER_DEFINE(ttm, "ttm", NULL, load_ttm_config, NULL, NULL);
 
-static void uart_send(const uint8_t *data, size_t len)
+static void uart_send(void *context, const uint8_t *data, size_t len)
 {
+	ARG_UNUSED(context);
 	for (size_t i = 0; i < len; i++) {
 		uart_poll_out(data_uart, data[i]);
 	}
 }
 
-static void ble_send(const uint8_t *data, size_t len)
+static void ble_send(void *context, const uint8_t *data, size_t len)
 {
 	uint16_t max_payload;
+
+	ARG_UNUSED(context);
 
 	if (ble_connection != NULL && notify_enabled) {
 		/* ATT 有效载荷为协商 MTU 减去 3 字节 ATT 头，默认恰好为 20 字节。 */
@@ -99,12 +103,18 @@ static void ble_send(const uint8_t *data, size_t len)
 	}
 }
 
-static bool ble_connected(void) { return ble_connection != NULL; }
+static bool ble_connected(void *context)
+{
+	ARG_UNUSED(context);
+	return ble_connection != NULL;
+}
 
-static int set_uart_baudrate(uint32_t baudrate)
+static int set_uart_baudrate(void *context, uint32_t baudrate)
 {
 	struct uart_config uart_config;
 	int ret = uart_config_get(data_uart, &uart_config);
+
+	ARG_UNUSED(context);
 
 	if (ret != 0) {
 		return ret;
@@ -123,14 +133,15 @@ static int set_uart_baudrate(uint32_t baudrate)
 	return uart_configure(data_uart, &uart_config);
 }
 
-static int set_tx_power(int8_t dbm)
+static int set_tx_power(void *context, int8_t dbm)
 {
+	ARG_UNUSED(context);
 	/* ESP32-C3 当前控制器的射频功率由构建配置决定，未开放运行时设置接口。 */
 	LOG_INF("请求设置发射功率 %d dBm，当前控制器使用构建时功率配置", dbm);
 	return 0;
 }
 
-static int restart_advertising(const struct ttm_config *config)
+static int restart_advertising(void *context, const struct ttm_config *config)
 {
 	int ret;
 	uint8_t manufacturer_data[] = {
@@ -150,6 +161,8 @@ static int restart_advertising(const struct ttm_config *config)
 	struct bt_le_adv_param param = BT_LE_ADV_PARAM_INIT(BT_LE_ADV_OPT_CONN,
 		BT_GAP_MS_TO_ADV_INTERVAL(config->adv_interval_ms),
 		BT_GAP_MS_TO_ADV_INTERVAL(config->adv_interval_ms), NULL);
+
+	ARG_UNUSED(context);
 
 	/* 名称、附加数据和产品识别码变更时无需停播，可避免控制器资源切换失败。 */
 	if (active_adv_interval_ms == config->adv_interval_ms) {
@@ -178,49 +191,59 @@ static int restart_advertising(const struct ttm_config *config)
 	return ret;
 }
 
-static int set_connection_interval(uint16_t interval_ms)
+static int set_connection_interval(void *context, uint16_t interval_ms)
 {
 	struct bt_le_conn_param param = BT_LE_CONN_PARAM_INIT(
 		(interval_ms * 4) / 5, (interval_ms * 4) / 5, 0, 400);
 
+	ARG_UNUSED(context);
 	return bt_conn_le_param_update(ble_connection, &param);
 }
 
 static void restart_advertising_work_handler(struct k_work *work)
 {
 	ARG_UNUSED(work);
-	restart_advertising(&ttm_config);
+	restart_advertising(NULL, &ttm_config);
 }
 
 K_WORK_DELAYABLE_DEFINE(advertising_restart_work, restart_advertising_work_handler);
 
-static void save_config(const struct ttm_config *config)
+static void save_config(void *context, const struct ttm_config *config)
 {
 	int ret = settings_save_one("ttm/config", config, sizeof(*config));
+
+	ARG_UNUSED(context);
 
 	if (ret != 0) {
 		LOG_ERR("保存 AT 配置失败：%d", ret);
 	}
 }
 
-static void reset_system(void) { sys_reboot(SYS_REBOOT_COLD); }
-
-static int set_mac(const uint8_t mac[6])
+static void reset_system(void *context)
 {
+	ARG_UNUSED(context);
+	sys_reboot(SYS_REBOOT_COLD);
+}
+
+static int set_mac(void *context, const uint8_t mac[6])
+{
+	ARG_UNUSED(context);
 	ARG_UNUSED(mac);
 	/* 蓝牙身份地址仅可在 bt_enable() 前创建，已保存的地址会在下次复位时生效。 */
 	LOG_INF("自定义 MAC 已保存，将在模块复位后生效");
 	return 0;
 }
 
-static void disconnect_ble(void)
+static void disconnect_ble(void *context)
 {
+	ARG_UNUSED(context);
 	if (ble_connection != NULL) {
 		bt_conn_disconnect(ble_connection, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 	}
 }
 
 static const struct ttm_port ttm_port = {
+	.context = NULL,
 	.uart_send = uart_send,
 	.ble_send = ble_send,
 	.connected = ble_connected,
@@ -246,7 +269,7 @@ static ssize_t on_ble_write(struct bt_conn *conn, const struct bt_gatt_attr *att
 	if (offset != 0 && !(flags & BT_GATT_WRITE_FLAG_EXECUTE)) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
-	ttm_protocol_on_ble(buffer, len);
+	ttm_protocol_on_ble(&ttm_protocol, buffer, len);
 	return len;
 }
 
@@ -267,15 +290,21 @@ BT_GATT_SERVICE_DEFINE(ttm_service,
 
 static void on_connected(struct bt_conn *conn, uint8_t err)
 {
-	if (err == 0) { ble_connection = bt_conn_ref(conn); uart_send((const uint8_t *)"TTM:OK\r\n", 8); }
+	if (err == 0) {
+		ble_connection = bt_conn_ref(conn);
+		uart_send(NULL, (const uint8_t *)"TTM:OK\r\n", 8);
+	}
 }
 
 static void on_disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	ARG_UNUSED(conn); ARG_UNUSED(reason);
-	if (ble_connection != NULL) { bt_conn_unref(ble_connection); ble_connection = NULL; }
+	if (ble_connection != NULL) {
+		bt_conn_unref(ble_connection);
+		ble_connection = NULL;
+	}
 	notify_enabled = false;
-	uart_send((const uint8_t *)"TTM:DISCONNET\r\n", 14);
+	uart_send(NULL, (const uint8_t *)"TTM:DISCONNET\r\n", 14);
 	active_adv_interval_ms = 0;
 	/* 控制器释放连接资源需要一点时间，不能在断连回调里立即启动广播。 */
 	k_work_reschedule(&advertising_restart_work, K_MSEC(200));
@@ -291,7 +320,7 @@ static void process_uart_packet(struct k_work *work)
 	ARG_UNUSED(work);
 
 	/* 蓝牙协议栈调用在工作队列上下文执行，不能直接在 UART 中断中执行。 */
-	ttm_protocol_on_uart(uart_packet, uart_packet_len);
+	ttm_protocol_on_uart(&ttm_protocol, uart_packet, uart_packet_len);
 }
 
 K_WORK_DEFINE(uart_packet_work, process_uart_packet);
@@ -309,7 +338,9 @@ static void on_uart_rx(const struct device *device, void *user_data)
 				uart_line_len = 0;
 				k_work_submit(&uart_packet_work);
 			}
-		} else if (uart_line_len < sizeof(uart_line)) { uart_line[uart_line_len++] = byte; }
+		} else if (uart_line_len < sizeof(uart_line)) {
+			uart_line[uart_line_len++] = byte;
+		}
 	}
 }
 
@@ -367,7 +398,7 @@ int main(void)
 			LOG_ERR("创建自定义蓝牙地址失败：%d", ret);
 		}
 	}
-	ttm_protocol_init(&ttm_config, &ttm_port);
+	ttm_protocol_init(&ttm_protocol, &ttm_config, &ttm_port);
 	if (bt_enable(NULL) == 0) {
 		bt_addr_le_t address;
 		size_t address_count = 1;
@@ -379,7 +410,7 @@ int main(void)
 				ttm_config.mac[2], ttm_config.mac[1], ttm_config.mac[0]);
 		}
 		bt_set_name(ttm_config.name);
-		restart_advertising(&ttm_config);
+		restart_advertising(NULL, &ttm_config);
 		LOG_INF("BLE 透传服务已启动：FFF0/FFF3/FFF4");
 	} else {
 		LOG_ERR("蓝牙控制器初始化失败");

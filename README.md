@@ -9,7 +9,7 @@
 - 支持普通 GATT 写入以及 Prepare/Execute 长写入。默认 ATT MTU 为 23（单包有效载荷 20 字节），中央设备可协商至 153（单包有效载荷 150 字节）。
 - UART0 默认参数为 115200、8N1、无流控；支持原始需求第 5.2 节的 15 类 `TTM:` AT 指令。
 - 名称、广播周期、产品 ID、附加广播数据、数据延时和自定义 MAC 使用内部 Flash 保存；自定义 MAC 在下次复位后生效。
-- AT 协议解析位于平台无关的 `src/ttm_protocol.c/.h`，Zephyr、UART、BLE、NVS 和 GPIO 逻辑由 `src/main.c` 适配，便于移植。
+- AT 协议解析位于平台无关的 `src/ttm_protocol.c/.h`。协议实例不使用全局状态，且通过带 `context` 的回调调用 Zephyr、UART、BLE、NVS 和 GPIO 适配层，便于移植或在主机侧模拟测试。
 
 原始需求的脱敏 Markdown 版本见 [蓝牙需求.md](蓝牙需求.md)。测试方法见 [蓝牙透传测试文档](doc/蓝牙透传测试文档.md)，移植说明见 [蓝牙透传移植文档](doc/蓝牙透传移植文档.md)，Mac mini 本地闭环测试说明见 [macOS 测试说明](function_test/macos_ble_test/README.md)。
 
