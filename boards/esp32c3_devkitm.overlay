@@ -1,0 +1,15 @@
+/* GPIO8 连接外部 LED，使用高电平点亮。 */
+/ {
+	aliases {
+		led0 = &gpio8_led;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		gpio8_led: led_0 {
+			label = "GPIO8 指示灯";
+			gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
