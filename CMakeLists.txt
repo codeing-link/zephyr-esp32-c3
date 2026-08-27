@@ -6,5 +6,4 @@ project(esp32_c3_gpio8_blinky)
 
 target_sources(app PRIVATE
 	src/main.c
-	src/ttm_protocol.c
 )

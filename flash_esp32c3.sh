@@ -5,11 +5,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZEPHYR_WORKSPACE="${ZEPHYR_WORKSPACE:-/home/qinbo/mpushare/macos_workspace/zephyr}"
-BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build}"
+VARIANT="${VARIANT:-initial}"
+BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build/${VARIANT}}"
 
-if [[ ! -f "${BUILD_DIR}/zephyr/zephyr.bin" ]]; then
-	echo "错误：未找到固件：${BUILD_DIR}/zephyr/zephyr.bin" >&2
-	echo "请先执行构建：bash ./build_esp32c3.sh" >&2
+if [[ ! -d "${BUILD_DIR}" ]]; then
+	echo "错误：未找到构建目录：${BUILD_DIR}" >&2
+	echo "请先执行构建：VARIANT=${VARIANT} bash ./build_esp32c3.sh" >&2
 	exit 1
 fi
 

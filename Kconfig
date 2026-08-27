@@ -1,0 +1,12 @@
+source "Kconfig.zephyr"
+
+menu "ESP32-C3 OTA demo options"
+
+config APP_BLINK_INTERVAL_MS
+	int "GPIO8 blink interval in milliseconds"
+	default 1000
+	help
+	  GPIO8 blink interval used to distinguish the factory image from the
+	  OTA-updated application image.
+
+endmenu
