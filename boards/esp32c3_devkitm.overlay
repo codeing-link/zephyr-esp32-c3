@@ -18,3 +18,26 @@
 		};
 	};
 };
+
+&pinctrl {
+	uart1_default: uart1_default {
+		group1 {
+			/* 业务串口 TX：ESP32C3 GPIO21 -> MCU RX。 */
+			pinmux = <UART1_TX_GPIO21>;
+			output-high;
+		};
+
+		group2 {
+			/* 业务串口 RX：ESP32C3 GPIO20 <- MCU TX。 */
+			pinmux = <UART1_RX_GPIO20>;
+			bias-pull-up;
+		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-names = "default";
+};

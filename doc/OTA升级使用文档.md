@@ -1,17 +1,18 @@
 # ESP32-C3 MCUboot + BLE OTA 使用文档
 
-本文说明如何在 macOS 上通过远程 Ubuntu 主机构建、首次下载和使用手机进行 BLE OTA 升级。当前 app 只保留两项功能：GPIO8 闪灯和 Zephyr 标准 MCUmgr/SMP over BLE OTA。
+本文说明如何在 macOS 上通过远程 Ubuntu 主机构建、首次下载和使用手机进行 BLE OTA 升级。当前 app 同时包含 GPIO8 状态灯、微信小程序 BLE 图片桥接和 Zephyr 标准 MCUmgr/SMP over BLE OTA。
 
 ## 测试信息
 
 |项目|当前值|说明|
 |---|---|---|
-|手机扫描名称|`ESP32C3-OTA`|在 nRF Connect Device Manager 中按这个名字查找|
+|手机扫描名称|`E-Badge-C3`|小程序和 nRF Connect Device Manager 都按这个名字查找|
 |SMP OTA 服务 UUID|`8D53DC1D-1DB7-4CD3-868B-8A527460AA84`|Zephyr MCUmgr/SMP 标准 BLE OTA 服务|
+|小程序图片服务 UUID|`6E400001-B5A3-F393-E0A9-E50E24DCCA9E`|BLE 写入图片数据、notify ACK/NACK|
 |当前开发板烧录 MAC|`7c:4f:ad:d1:95:04`|来自 esptool 读取结果|
 |RSSI|不固定|由手机实时测量，近距离常见约 `-30~-60 dBm`，距离远或遮挡时可能到 `-70~-90 dBm`|
 
-注意：手机软件里看到的 BLE 地址可能带 public/random 类型，显示顺序也可能和 esptool 的芯片 MAC 不完全一致。实际测试时优先按广播名称 `ESP32C3-OTA` 查找。
+注意：手机软件里看到的 BLE 地址可能带 public/random 类型，显示顺序也可能和 esptool 的芯片 MAC 不完全一致。实际测试时优先按广播名称 `E-Badge-C3` 查找。
 
 ## 固件目标
 
@@ -116,7 +117,7 @@ dist/app-update-update-1000ms.signed.bin
 ## 第五步：手机执行 OTA
 
 1. 打开 `nRF Connect Device Manager`。
-2. 扫描设备，找到名称为 `ESP32C3-OTA` 的设备。
+2. 扫描设备，找到名称为 `E-Badge-C3` 的设备。
 3. 连接设备。
 4. 进入 `Image`、`DFU` 或 `Firmware Update` 页面，不同版本入口名称略有差异。
 5. 选择文件 `app-update-update-1000ms.signed.bin`。
@@ -139,7 +140,8 @@ initial 启动时重点看：
 
 ```text
 GPIO8 初始化完成，开始每 500 ms 翻转一次
-BLE OTA 广播已启动，名称：ESP32C3-OTA
+业务 UART1 已启动：GPIO21 TX、GPIO20 RX、115200 8N1
+BLE 图片桥接广播已启动，名称：E-Badge-C3
 ```
 
 OTA 到 update 后应看到：
@@ -153,7 +155,7 @@ GPIO8 初始化完成，开始每 1000 ms 翻转一次
 
 ### 手机找不到设备
 
-先确认使用 `nRF Connect Device Manager` 扫描，目标名称是 `ESP32C3-OTA`。RSSI 不是固定值，手机上一般会显示类似 `-40 dBm`、`-65 dBm` 这样的信号强度。把手机靠近板子，列表里 RSSI 变强的 `ESP32C3-OTA` 就是目标设备。
+先确认使用 `nRF Connect Device Manager` 扫描，目标名称是 `E-Badge-C3`。RSSI 不是固定值，手机上一般会显示类似 `-40 dBm`、`-65 dBm` 这样的信号强度。把手机靠近板子，列表里 RSSI 变强的 `E-Badge-C3` 就是目标设备。
 
 ### 看到了设备但没有 OTA 入口
 
@@ -161,7 +163,7 @@ GPIO8 初始化完成，开始每 1000 ms 翻转一次
 
 ### 上传失败
 
-断开其它手机或电脑上的 BLE 连接，再重新连接 `ESP32C3-OTA`。当前固件只允许一个 BLE 连接。
+断开其它手机或电脑上的 BLE 连接，再重新连接 `E-Badge-C3`。当前固件只允许一个 BLE 连接。
 
 ### 上传后还是 0.5s 闪灯
 

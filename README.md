@@ -1,12 +1,14 @@
-# ESP32-C3 GPIO8 闪灯与 BLE OTA
+# ESP32-C3 BLE 图片桥接与 OTA
 
-本工程面向 `esp32c3_devkitm`，当前 app 已简化为 GPIO8 闪灯和 MCUboot + BLE OTA。源代码目录通过 Samba 挂载，请在 macOS 上使用远程脚本调用 Ubuntu 构建和下载环境。
+本工程面向 `esp32c3_devkitm`，当前 app 负责把微信小程序的 BLE 图片数据透传到下位机 MCU，并保留 MCUboot + BLE OTA 升级框架。源代码目录通过 Samba 挂载，请在 macOS 上使用远程脚本调用 Ubuntu 构建和下载环境。
 
 ## 当前功能
 
 - `initial` 固件：GPIO8 每 `500 ms` 翻转一次，用于首次下载验证。
 - `update` 固件：GPIO8 每 `1000 ms` 翻转一次，用于手机 OTA 验证。
-- BLE 广播名称固定为 `ESP32C3-OTA`。
+- BLE 广播名称固定为 `E-Badge-C3`。
+- 小程序通过自定义 GATT 服务写入图片传输数据，ESP32C3 原样转发到 UART1。
+- 下位机 MCU 通过 UART1 返回 JPGU ACK/NACK，ESP32C3 原样通过 BLE notify 回小程序。
 - OTA 使用 Zephyr 标准 MCUmgr/SMP over BLE 服务：
 
 ```text
@@ -14,6 +16,28 @@
 ```
 
 当前测试板 esptool 读取到的烧录 MAC 为 `7c:4f:ad:d1:95:04`。手机上看到的 RSSI 是实时信号强度，不是固定值；近距离常见约 `-30~-60 dBm`。
+
+## 小程序 BLE 通道
+
+|项目|当前值|
+|---|---|
+|设备名|`E-Badge-C3`|
+|主服务 UUID|`6e400001-b5a3-f393-e0a9-e50e24dcca9e`|
+|RX 写特征|`6e400002-b5a3-f393-e0a9-e50e24dcca9e`|
+|TX 通知特征|`6e400003-b5a3-f393-e0a9-e50e24dcca9e`|
+|建议 MTU|247|
+
+ESP32C3 不解析图片文件内容。小程序写入的每段 JPGU 数据都会进入 UART 发送队列，按收到顺序从 UART1 发给下位机。
+
+## 下位机 UART 接线
+
+|ESP32C3|下位机 MCU|说明|
+|---|---|---|
+|GPIO21 / UART1 TX|MCU RX|ESP32C3 下发 JPGU 数据|
+|GPIO20 / UART1 RX|MCU TX|MCU 回传 ACK/NACK|
+|GND|GND|必须共地|
+
+串口参数默认 `115200 8N1`，无流控。图片 BMP 文件较大，联调稳定后建议两端一起提升到 `921600` 或更高。
 
 ## 构建与下载
 
@@ -80,7 +104,8 @@ initial 启动时应看到：
 
 ```text
 GPIO8 初始化完成，开始每 500 ms 翻转一次
-BLE OTA 广播已启动，名称：ESP32C3-OTA
+BLE 图片桥接广播已启动，名称：E-Badge-C3
+业务 UART1 已启动：GPIO21 TX、GPIO20 RX、115200 8N1
 ```
 
 update 启动时应看到：
